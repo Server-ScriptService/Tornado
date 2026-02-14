@@ -49,7 +49,7 @@ local MAX_AFFECTED_ASSEMBLIES = 30
 local OCCLUSION_ENABLED = true
 local OCCLUSION_PULL_MULTIPLIER = 0.4
 
-local FILTER_MODE = Enum.RaycastFilterType.Blacklist
+local FILTER_MODE = Enum.RaycastFilterType.Exclude
 local FILTER_LIST = {}
 
 local TornadoRoot = script.Parent
@@ -123,7 +123,7 @@ end
 
 local function BuildOcclusionParams(targetRoot: BasePart): RaycastParams
 	local rayParams = RaycastParams.new()
-	rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+	rayParams.FilterType = Enum.RaycastFilterType.Exclude
 	local filterList = { TornadoRoot }
 	local targetModel = GetModelFromPart(targetRoot)
 	if targetModel then
@@ -137,7 +137,7 @@ end
 
 local function IsGrounded(rootPart: BasePart): boolean
 	local rayParams = RaycastParams.new()
-	rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+	rayParams.FilterType = Enum.RaycastFilterType.Exclude
 	rayParams.FilterDescendantsInstances = { TornadoRoot, rootPart }
 	local castDistance = (rootPart.Size.Y * 0.5) + 2
 	local hit = Workspace:Raycast(rootPart.Position, Vector3.new(0, -castDistance, 0), rayParams)

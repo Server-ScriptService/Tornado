@@ -151,6 +151,7 @@ end
 
 local CapturedAssemblies = {} :: { [BasePart]: {
 	CaptureStartTime: number,
+	SwirlStartTime: number?,
 	LastDamageTime: number,
 	LastVehicleDamageTime: number,
 	CharacterModel: Model?,
@@ -191,6 +192,7 @@ local function EnsureCaptured(rootPart: BasePart, now: number)
 	local vehicle = CarModule.indexVehicleFromPart(rootPart)
 	CapturedAssemblies[rootPart] = {
 		CaptureStartTime = now,
+		SwirlStartTime = nil,
 		LastDamageTime = 0,
 		LastVehicleDamageTime = 0,
 		CharacterModel = characterModel,
@@ -212,15 +214,15 @@ local function ComputeOcclusionMultiplier(rootPart: BasePart, centerPosition: Ve
 	return 1
 end
 
-local function ApplyTornadoForces(rootPart: BasePart, centerPosition: Vector3, effectiveRadius: number, deltaTime: number)
+local function ApplyTornadoForces(rootPart: BasePart, centerPosition: Vector3, effectiveRadius: number, deltaTime: number): boolean
 	local offset = rootPart.Position - centerPosition
 	local distance = offset.Magnitude
 	if distance > effectiveRadius then
-		return
+		return false
 	end
 	local mass = rootPart.AssemblyMass
 	if mass <= 0 then
-		return
+		return false
 	end
 
 	local falloff = GetFalloff(distance, effectiveRadius)
@@ -232,11 +234,13 @@ local function ApplyTornadoForces(rootPart: BasePart, centerPosition: Vector3, e
 	end
 
 	local swirlForce = Vector3.zero
+	local isGettingSwirled = false
 	if distance > SWIRL_MIN_DISTANCE then
 		local radial = offset.Unit
 		local tangent = Vector3.yAxis:Cross(radial)
 		if tangent.Magnitude > 0 then
 			swirlForce = tangent.Unit * (SWIRL_STRENGTH * SWIRL_SPEED * INTENSITY * falloff * occlusionMultiplier)
+			isGettingSwirled = swirlForce.Magnitude > 0
 		end
 	end
 
@@ -257,6 +261,8 @@ local function ApplyTornadoForces(rootPart: BasePart, centerPosition: Vector3, e
 	local totalForce = pullForce + swirlForce + liftForce + turbulenceForce
 	local acceleration = totalForce / mass
 	rootPart.AssemblyLinearVelocity += acceleration * deltaTime
+
+	return isGettingSwirled
 end
 
 local function ApplyPlayerDamage(rootPart: BasePart, captureData, distance: number, effectiveRadius: number, now: number)
@@ -399,11 +405,22 @@ RunService.Heartbeat:Connect(function(deltaTime)
 			continue
 		end
 
-		ApplyTornadoForces(rootPart, centerPosition, effectiveRadius, frameDelta)
+		local isGettingSwirled = ApplyTornadoForces(rootPart, centerPosition, effectiveRadius, frameDelta)
 		ApplyPlayerDamage(rootPart, captureData, distance, effectiveRadius, now)
 		ApplyVehicleDamage(captureData, distance, effectiveRadius, now)
 
-		local captureDuration = now - captureData.CaptureStartTime
+		if isGettingSwirled then
+			if not captureData.SwirlStartTime then
+				captureData.SwirlStartTime = now
+			end
+		else
+			captureData.SwirlStartTime = nil
+		end
+
+		local captureDuration = 0
+		if captureData.SwirlStartTime then
+			captureDuration = now - captureData.SwirlStartTime
+		end
 		local humanoid = captureData.Humanoid
 		local canThrowCharacter = (not humanoid) or humanoid.Health > 0
 		if canThrowCharacter and captureDuration >= CAPTURE_DURATION_BEFORE_THROW then

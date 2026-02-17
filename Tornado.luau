@@ -21,7 +21,6 @@ local PULL_STRENGTH = 5600
 local PULL_MIN_DISTANCE = 0
 local SWIRL_STRENGTH = 10000
 local SWIRL_SPEED = 2.8
-local SWIRL_MIN_DISTANCE = 20
 local LIFT_STRENGTH = 10000
 local LIFT_THRESHOLD_MULTIPLIER = 0.75
 local TURBULENCE_STRENGTH = 5000
@@ -262,9 +261,9 @@ local function ApplyTornadoForces(rootPart: BasePart, captureData, centerPositio
 	local planarOffset = vector.create(offset.X, 0, offset.Z)
 	local planarDistance = planarOffset.Magnitude
 
-	local SwirlAllowed = (distance <= math.min(SWIRL_MIN_DISTANCE, effectiveRadius))
+	local SwirlAllowed = planarDistance <= math.min(8, effectiveRadius)
 
-	if SwirlAllowed and planarDistance > SWIRL_MIN_DISTANCE then
+	if SwirlAllowed and planarDistance > 0.5 then
 		radialUnit = planarOffset.Unit
 		local tangent = Vector3.yAxis:Cross(radialUnit)
 		if tangent.Magnitude > 0 then
@@ -433,7 +432,7 @@ RunService.Heartbeat:Connect(function(deltaTime)
 
 	local now = os.clock()
 	local effectiveRadius = BASE_RADIUS * INTENSITY
-	local centerPosition = TornadoPart.Position
+	local centerPosition = CenterAttachment.WorldPosition
 
 	if DetectionAccumulator >= DETECTION_REFRESH_RATE then
 		DetectionAccumulator = 0
